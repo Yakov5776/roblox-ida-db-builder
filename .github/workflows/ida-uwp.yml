@@ -22,8 +22,7 @@ jobs:
           } catch {
             echo "RELEASE_CHECK_SUCCESS=false" >> $env:GITHUB_ENV
           }
-
-          
+         
       - name: Download Latest Release Binary
         if: env.RELEASE_CHECK_SUCCESS == 'false'
         run: |
@@ -34,3 +33,14 @@ jobs:
             Move-Item $_.FullName RobloxBundle.zip
             Expand-Archive -Path RobloxBundle.zip -Destination RobloxBundle
           }
+
+      - name: Download IDA Pro 7.6
+        if: env.RELEASE_CHECK_SUCCESS == 'false'
+        run: |
+          Invoke-WebRequest -Uri "${{secrets.IDA_DL}}" -OutFile "ida.zip"
+          Expand-Archive -Path "ida.zip" -DestinationPath "ida"
+
+      - name: Analyze database
+        if: env.RELEASE_CHECK_SUCCESS == 'false'
+        run: |
+          Start-Process -FilePath "ida/ida.exe" -ArgumentList "-c", "-A", "-Sqanalysis.idc", "RobloxBundle/Windows10Universal.exe" -Wait
