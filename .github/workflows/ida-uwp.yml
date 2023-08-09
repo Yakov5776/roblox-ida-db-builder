@@ -8,18 +8,23 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Get current Release Tag
-        run: |
-          $response = Invoke-RestMethod -Uri "https://api.github.com/repos/${{github.repository}}/releases/latest"
-          $tag = $response.tag_name
-          echo "LATEST_UWP_RELEASE_TAG=$tag" >> $env:GITHUB_ENV
       - name: Get latest UWP Release Tag
         run: |
           $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:uwp_repo/releases/latest"
           $tag = $response.tag_name
           echo "LATEST_UWP_RELEASE_TAG=$tag" >> $env:GITHUB_ENV
 
+      - name: Check if a newer version is available
+        run: |
+          try {
+            $response = Invoke-RestMethod -Uri "https://api.github.com/repos/${{github.repository}}/releases/tag/${{env.LATEST_UWP_RELEASE_TAG}}"
+            echo "RELEASE_CHECK_SUCCESS=true" >> $env:GITHUB_ENV
+          } catch {
+            echo "RELEASE_CHECK_SUCCESS=false" >> $env:GITHUB_ENV
+          }
+         
       - name: Download Latest Release Binary
+        if: env.RELEASE_CHECK_SUCCESS == 'false'
         run: |
           $url = (Invoke-RestMethod -Uri "https://api.github.com/repos/$env:uwp_repo/releases/latest").assets[0].browser_download_url
           Invoke-WebRequest -Uri $url -OutFile "Roblox.zip"
@@ -28,3 +33,44 @@ jobs:
             Move-Item $_.FullName RobloxBundle.zip
             Expand-Archive -Path RobloxBundle.zip -Destination RobloxBundle
           }
+
+      - name: Download IDA Pro 7.6
+        if: env.RELEASE_CHECK_SUCCESS == 'false'
+        run: |
+          Invoke-WebRequest -Uri "${{secrets.IDA_DL}}" -OutFile "ida.zip"
+          Expand-Archive -Path "ida.zip" -DestinationPath "ida"
+          
+      - name: Accept Hex-Rays EULA
+        if: env.RELEASE_CHECK_SUCCESS == 'false'
+        run: |
+          $registryPath = "HKCU:\SOFTWARE\Hex-Rays\IDA"
+          New-Item -Path $registryPath -Force
+          
+          $idaSettings = @{
+            "License IDA PRO 7.6 SP1" = 0x00000001
+            "DisplayWelcome" = 0x00000000
+            "RegistryVersion" = 0x000002d0
+            "PortedToCss" = 0x00000001
+          }
+          
+          $idaSettings.GetEnumerator() | ForEach-Object {
+            Set-ItemProperty -Path $registryPath -Name $_.Key -Value $_.Value
+          }
+
+      - name: Analyze database
+        if: env.RELEASE_CHECK_SUCCESS == 'false'
+        run: |
+          Start-Process -FilePath "ida/ida.exe" -ArgumentList "-c", "-A", "-Sqanalysis.idc", "RobloxBundle/Windows10Universal.exe" -Wait
+          
+      - name: Pushing to release
+        uses: ncipollo/release-action@v1
+        if: env.RELEASE_CHECK_SUCCESS == 'false'
+        with:
+          name: ${{ env.LATEST_UWP_RELEASE_TAG }}
+          tag: ${{ env.LATEST_UWP_RELEASE_TAG }}
+          body: ${{ env.LATEST_UWP_RELEASE_TAG }}
+          commit: ${{ github.sha }}
+          artifacts: "RobloxBundle/Windows10Universal.exe.idb"
+          allowUpdates: true
+          removeArtifacts: false
+          replacesArtifacts: false
