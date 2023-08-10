@@ -75,3 +75,7 @@ jobs:
           allowUpdates: true
           removeArtifacts: false
           replacesArtifacts: false
+          
+      - name: Run cleanup actions
+        if: always()
+        run: Get-ChildItem | Remove-Item -Recurse -Force
