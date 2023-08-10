@@ -5,7 +5,7 @@ env:
 
 jobs:
   uwp:
-    runs-on: windows-latest
+    runs-on: self-hosted
 
     steps:
       - name: Get latest UWP Release Tag
