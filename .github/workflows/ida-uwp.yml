@@ -1,4 +1,5 @@
 name: Analyze UWP
+permissions: write-all
 on: [workflow_dispatch, push]
 env:
   uwp_repo: 'Yakov5776/RobloxUWP-StoreLib'
