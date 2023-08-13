@@ -1,6 +1,10 @@
 name: Analyze UWP
 permissions: write-all
-on: [workflow_dispatch, push]
+on:
+  workflow_dispatch:
+  push:
+  schedule:
+    - cron: "0 * * * *"
 env:
   uwp_repo: 'Yakov5776/RobloxUWP-StoreLib'
 
@@ -29,7 +33,7 @@ jobs:
     runs-on: self-hosted
     timeout-minutes: 1440
     concurrency:
-      group: ${{ github.workflow }}-${{ env.RELEASE_TAG }}
+      group: ${{ github.workflow }}
 
     steps:         
       - name: Download Latest Release Binary
