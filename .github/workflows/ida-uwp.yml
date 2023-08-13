@@ -5,28 +5,34 @@ env:
   uwp_repo: 'Yakov5776/RobloxUWP-StoreLib'
 
 jobs:
-  uwp:
-    runs-on: self-hosted
-    timeout-minutes: 1440
-
+  update_check:
+    runs-on: ubuntu-latest
     steps:
       - name: Get latest UWP Release Tag
         run: |
-          $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:uwp_repo/releases/latest"
-          $tag = $response.tag_name
-          echo "LATEST_UWP_RELEASE_TAG=$tag" >> $env:GITHUB_ENV
+          response=$(curl -s "https://api.github.com/repos/$uwp_repo/releases/latest")
+          tag=$(echo "$response" | jq -r '.tag_name')
+          echo "RELEASE_TAG=$tag" >> $GITHUB_ENV
 
       - name: Check if a newer version is available
         run: |
-          try {
-            $response = Invoke-RestMethod -Uri "https://api.github.com/repos/${{github.repository}}/releases/tag/${{env.LATEST_UWP_RELEASE_TAG}}"
-            echo "RELEASE_CHECK_SUCCESS=true" >> $env:GITHUB_ENV
-          } catch {
-            echo "RELEASE_CHECK_SUCCESS=false" >> $env:GITHUB_ENV
-          }
-         
+          response=$(curl -s "https://api.github.com/repos/${{github.repository}}/releases/tags/${{env.RELEASE_TAG}}")
+          id=$(echo "$response" | jq '.id' -r)
+          echo "EXISTING_RELEASE=$id" >> $GITHUB_ENV
+          
+      - name: Cancel Workflow
+        if: env.EXISTING_RELEASE != 'null'
+        uses: andymckay/cancel-action@0.3
+    
+  uwp:
+    needs: update_check
+    runs-on: self-hosted
+    timeout-minutes: 1440
+    concurrency:
+      group: ${{ github.workflow }}-${{ env.RELEASE_TAG }}
+
+    steps:         
       - name: Download Latest Release Binary
-        if: env.RELEASE_CHECK_SUCCESS == 'false'
         run: |
           $url = (Invoke-RestMethod -Uri "https://api.github.com/repos/$env:uwp_repo/releases/latest").assets[0].browser_download_url
           Invoke-WebRequest -Uri $url -OutFile "Roblox.zip"
@@ -37,13 +43,11 @@ jobs:
           }
 
       - name: Download IDA Pro 7.6
-        if: env.RELEASE_CHECK_SUCCESS == 'false'
         run: |
           Invoke-WebRequest -Uri "${{secrets.IDA_DL}}" -OutFile "ida.zip"
           Expand-Archive -Path "ida.zip" -DestinationPath "ida"
           
       - name: Accept Hex-Rays EULA
-        if: env.RELEASE_CHECK_SUCCESS == 'false'
         run: |
           $registryPath = "HKCU:\SOFTWARE\Hex-Rays\IDA"
           New-Item -Path $registryPath -Force
@@ -60,13 +64,11 @@ jobs:
           }
 
       - name: Analyze database
-        if: env.RELEASE_CHECK_SUCCESS == 'false'
         run: |
           Start-Process -FilePath "ida/ida.exe" -ArgumentList "-c", "-A", "-Sqanalysis.idc", "RobloxBundle/Windows10Universal.exe" -Wait
           
       - name: Pushing to release
         uses: ncipollo/release-action@v1
-        if: env.RELEASE_CHECK_SUCCESS == 'false'
         with:
           name: ${{ env.LATEST_UWP_RELEASE_TAG }}
           tag: ${{ env.LATEST_UWP_RELEASE_TAG }}
