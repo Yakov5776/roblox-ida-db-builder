@@ -11,29 +11,29 @@ env:
 jobs:
   update_check:
     runs-on: ubuntu-latest
+    outputs:
+      RELEASE_TAG: ${{ steps.update_check.outputs.RELEASE_TAG }}
+      EXISTING_RELEASE: ${{ steps.update_check.outputs.EXISTING_RELEASE }}
     steps:
       - name: Get latest UWP Release Tag
         run: |
           response=$(curl -s "https://api.github.com/repos/$uwp_repo/releases/latest")
           tag=$(echo "$response" | jq -r '.tag_name')
-          echo "RELEASE_TAG=$tag" >> $GITHUB_ENV
+          echo "RELEASE_TAG=$tag" >> $GITHUB_OUTPUT
 
       - name: Check if a newer version is available
         run: |
           response=$(curl -s "https://api.github.com/repos/${{github.repository}}/releases/tags/${{env.RELEASE_TAG}}")
           id=$(echo "$response" | jq '.id' -r)
-          echo "EXISTING_RELEASE=$id" >> $GITHUB_ENV
-          
-      - name: Cancel Workflow
-        if: env.EXISTING_RELEASE != 'null'
-        uses: andymckay/cancel-action@0.3
+          echo "EXISTING_RELEASE=$id" >> $GITHUB_OUTPUT
     
   uwp:
     needs: update_check
     runs-on: self-hosted
     timeout-minutes: 1440
+    if: needs.update_check.outputs.EXISTING_RELEASE == 'null'
     concurrency:
-      group: ${{ github.workflow }}
+      group: ${{ github.workflow }}-${ needs.update_check.outputs.RELEASE_TAG }
 
     steps:         
       - name: Download Latest Release Binary
