@@ -18,7 +18,7 @@ jobs:
       - name: Get latest UWP Release Tag
         id: get-tag
         run: |
-          response=$(curl -s "https://api.github.com/repos/${{env.uwp_repo}/releases/latest")
+          response=$(curl -s "https://api.github.com/repos/${{env.uwp_repo}}/releases/latest")
           tag=$(echo "$response" | jq -r '.tag_name')
           echo "RELEASE_TAG=$tag" >> $GITHUB_OUTPUT
 
