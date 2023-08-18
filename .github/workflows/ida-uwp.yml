@@ -12,16 +12,20 @@ jobs:
   update_check:
     runs-on: ubuntu-latest
     outputs:
-      RELEASE_TAG: ${{ steps.update_check.outputs.RELEASE_TAG }}
-      EXISTING_RELEASE: ${{ steps.update_check.outputs.EXISTING_RELEASE }}
+      RELEASE_TAG: ${{ steps.get-tag.outputs.RELEASE_TAG }}
+      EXISTING_RELEASE: ${{ steps.check-tag.outputs.EXISTING_RELEASE }}
     steps:
       - name: Get latest UWP Release Tag
+        id: get-tag
         run: |
-          response=$(curl -s "https://api.github.com/repos/$uwp_repo/releases/latest")
+          response=$(curl -s "https://api.github.com/repos/${{env.uwp_repo}/releases/latest")
           tag=$(echo "$response" | jq -r '.tag_name')
           echo "RELEASE_TAG=$tag" >> $GITHUB_OUTPUT
 
       - name: Check if a newer version is available
+        id: check-tag
+        env:
+          RELEASE_TAG: ${{ steps.get-tag.outputs.RELEASE_TAG }}
         run: |
           response=$(curl -s "https://api.github.com/repos/${{github.repository}}/releases/tags/${{env.RELEASE_TAG}}")
           id=$(echo "$response" | jq '.id' -r)
