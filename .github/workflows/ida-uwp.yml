@@ -78,9 +78,9 @@ jobs:
       - name: Pushing to release
         uses: ncipollo/release-action@v1
         with:
-          name: ${ needs.update_check.outputs.RELEASE_TAG }
-          tag: ${ needs.update_check.outputs.RELEASE_TAG }
-          body: ${ needs.update_check.outputs.RELEASE_TAG }
+          name: ${{ needs.update_check.outputs.RELEASE_TAG }}
+          tag: ${{ needs.update_check.outputs.RELEASE_TAG }}
+          body: ${{ needs.update_check.outputs.RELEASE_TAG }}
           commit: ${{ github.sha }}
           artifacts: "RobloxBundle/Windows10Universal.exe.idb"
           allowUpdates: true
